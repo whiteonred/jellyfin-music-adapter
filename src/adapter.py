@@ -73,6 +73,16 @@ class JellyfinClient:
             result["imageUrl"] = self.image_url(image_id)
         return result
 
+    def to_playlist(self, item: dict[str, Any]) -> dict[str, Any]:
+        result = {
+            "id": item["Id"],
+            "name": item.get("Name", item["Id"]),
+            "tracksCount": int(item.get("ChildCount") or 0),
+        }
+        if item.get("ImageTags", {}).get("Primary"):
+            result["imageUrl"] = self.image_url(item["Id"])
+        return result
+
     def to_track(self, item: dict[str, Any], include_url: bool = False) -> dict[str, Any]:
         result = {
             "id": item["Id"],
@@ -165,6 +175,22 @@ class AdapterHandler(BaseHTTPRequestHandler):
                 device = path.split("/")[2]
                 track = self.queues.current(device)
                 self.json_response(200 if track else 404, track or {"error": "queue is empty"})
+                return
+            if path == "/music/stock/waves":
+                self.json_response(200, {"waves": []})
+                return
+            if path == "/music/stock/playlists":
+                data = self.client.get("/Items", {"UserId": self.client.user_id or None, "IncludeItemTypes": "Playlist", "Recursive": "true", "Limit": 100})
+                self.json_response(200, {"playlists": [self.client.to_playlist(x) for x in data.get("Items", [])]})
+                return
+            if path.startswith("/music/playlist/"):
+                rest = path.removeprefix("/music/playlist/")
+                playlist_id, _, suffix = rest.partition("/")
+                if suffix == "tracks":
+                    data = self.client.audio_items(extra={"ParentId": playlist_id})
+                    self.json_response(200, {"total": data.get("TotalRecordCount", 0), "tracks": [self.client.to_track(x) for x in data.get("Items", [])]})
+                    return
+                self.json_response(200, {"playlist": self.client.to_playlist(self.client.item(playlist_id))})
                 return
             if path.startswith("/music/artist/"):
                 rest = path.removeprefix("/music/artist/")
