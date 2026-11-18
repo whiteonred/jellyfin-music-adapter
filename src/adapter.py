@@ -98,7 +98,11 @@ class JellyfinClient:
         return result
 
     def item(self, item_id: str) -> dict[str, Any]:
-        return self.get(f"/Items/{quote(item_id)}", {"UserId": self.user_id or None})
+        data = self.get("/Items", {"Ids": item_id, "UserId": self.user_id or None})
+        items = data.get("Items", [])
+        if not items:
+            raise ValueError(f"Jellyfin item not found: {item_id}")
+        return items[0]
 
     def audio_items(self, query: str = "", extra: dict[str, Any] | None = None) -> dict[str, Any]:
         params = {
