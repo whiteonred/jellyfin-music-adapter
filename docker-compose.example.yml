@@ -1,0 +1,13 @@
+services:
+  jellyfin-music-adapter:
+    build: .
+    restart: unless-stopped
+    environment:
+      JELLYFIN_URL: http://jellyfin:8096
+      JELLYFIN_API_KEY_FILE: /run/secrets/jellyfin_api_key
+    secrets:
+      - jellyfin_api_key
+
+secrets:
+  jellyfin_api_key:
+    file: ./secrets/jellyfin_api_key
